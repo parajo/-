@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能日历生成器 v5.0 (云端同步版)</title>
+    <title>智能日历管理站 v6.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/dayjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/locale/zh-cn.min.js"></script>
@@ -15,13 +15,6 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
         
-        /* 模态框动画 */
-        .modal-enter { opacity: 0; transform: scale(0.95); }
-        .modal-enter-active { opacity: 1; transform: scale(1); transition: all 0.2s ease-out; }
-        .modal-exit { opacity: 1; transform: scale(1); }
-        .modal-exit-active { opacity: 0; transform: scale(0.95); transition: all 0.2s ease-in; }
-
-        /* 折叠面板动画 */
         details > summary { list-style: none; }
         details > summary::-webkit-details-marker { display: none; }
         details[open] summary ~ * { animation: sweep .3s ease-in-out; }
@@ -30,39 +23,63 @@
 </head>
 <body class="bg-gray-50 h-screen flex flex-col text-gray-700 overflow-hidden">
 
-    <!-- 1. 顶部导航 -->
+    <!-- 全局顶部导航 -->
     <header class="bg-white border-b border-gray-200 h-14 flex-none z-30 shadow-sm flex items-center justify-between px-6">
         <div class="flex items-center gap-3">
-            <div class="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-md">
+            <div class="bg-indigo-600 w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-md cursor-pointer hover:bg-indigo-700 transition" onclick="switchView('dashboard')">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
             </div>
             <div>
-                <h1 class="text-base font-bold text-gray-900 leading-none">智能日历生成器 <span class="text-[10px] text-white bg-indigo-500 px-1.5 py-0.5 rounded ml-1 font-normal">v5.0</span></h1>
-                <p class="text-[10px] text-gray-400 mt-0.5">分组管理 · 批次着色 · GitHub云同步</p>
+                <h1 class="text-base font-bold text-gray-900 leading-none flex items-center gap-2">
+                    <span class="cursor-pointer hover:text-indigo-600 transition" onclick="switchView('dashboard')">智能日历控制台</span>
+                    <span class="text-[10px] text-white bg-indigo-500 px-1.5 py-0.5 rounded font-normal">v6.0</span>
+                </h1>
+                <p id="header-subtitle" class="text-[10px] text-gray-400 mt-0.5">多日历管理 · 独立云同步</p>
             </div>
         </div>
         
-        <div class="flex items-center gap-3">
-            <button onclick="confirmAction('clear')" class="text-xs text-gray-400 hover:text-red-500 transition-colors flex items-center gap-1">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                全部清空
+        <!-- 编辑器专属顶部操作区 (默认隐藏) -->
+        <div id="editor-actions" class="hidden flex items-center gap-3">
+            <button onclick="switchView('dashboard')" class="text-xs text-gray-500 hover:text-indigo-600 transition-colors flex items-center gap-1 font-medium mr-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                返回看板
             </button>
             <div class="h-4 w-px bg-gray-200 mx-1"></div>
-            <button onclick="exportSelected()" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95">
+            <button onclick="exportSelected()" class="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 px-4 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all flex items-center gap-2">
                 <svg class="w-3.5 h-3.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
-                本地下载
+                下载选中
             </button>
-            <button onclick="openModal('github-modal')" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all flex items-center gap-2 active:scale-95">
+            <button onclick="openGitHubModalForCurrent()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 rounded-md text-xs font-bold shadow-sm transition-all flex items-center gap-2">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>
-                云端同步订阅
+                云端同步
             </button>
         </div>
     </header>
 
-    <!-- 主体布局 -->
-    <div class="flex flex-1 overflow-hidden max-w-full">
-        
-        <!-- 2. 左侧配置面板 -->
+    <!-- 视图 1：工作台 (Dashboard) -->
+    <div id="view-dashboard" class="flex-1 overflow-y-auto p-8 bg-gray-50">
+        <div class="max-w-6xl mx-auto">
+            <div class="flex justify-between items-end mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-800">我的日历库</h2>
+                    <p class="text-sm text-gray-500 mt-1">管理你的多个独立日历项目</p>
+                </div>
+                <button onclick="promptCreateCalendar()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-lg text-sm font-bold shadow-md transition-all flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    新建日历项目
+                </button>
+            </div>
+
+            <!-- 日历卡片网格 -->
+            <div id="calendar-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- 动态渲染卡片 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 视图 2：编辑器 (Editor) -->
+    <div id="view-editor" class="hidden flex-1 overflow-hidden max-w-full flex">
+        <!-- 左侧配置面板 -->
         <div class="w-[400px] bg-white border-r border-gray-200 flex flex-col z-20 flex-none shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
             <div class="flex border-b border-gray-100">
                 <button onclick="switchMode('batch')" id="tab-batch" class="flex-1 py-3 text-xs font-bold text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50 transition-all">批量计划生成</button>
@@ -72,17 +89,16 @@
             <div class="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
                 <datalist id="category-list"></datalist>
 
-                <!-- (A) 批量模式表单 -->
-                <div id="panel-batch" class="space-y-4 animate-fade-in">
+                <!-- 批量模式表单 -->
+                <div id="panel-batch" class="space-y-4">
                     <div class="space-y-3">
                         <div>
                             <label class="text-[10px] font-bold text-gray-400 uppercase">计划名称</label>
-                            <input type="text" id="b-name" placeholder="如：英语学习、新员工培训" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none font-medium transition-colors focus:border-indigo-500">
+                            <input type="text" id="b-name" placeholder="如：英语学习" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm focus:border-indigo-500 outline-none">
                         </div>
-
                         <div class="grid grid-cols-2 gap-3">
                             <div class="relative">
-                                <label class="text-[10px] font-bold text-gray-400 uppercase flex justify-between">分类 <button onclick="openCategoryModal()" class="text-indigo-600 hover:underline cursor-pointer">管理</button></label>
+                                <label class="text-[10px] font-bold text-gray-400 uppercase flex justify-between">分类 <button onclick="openCategoryModal()" class="text-indigo-600 hover:underline">管理</button></label>
                                 <input list="category-list" id="b-category" placeholder="选择或输入" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
                             </div>
                             <div>
@@ -90,9 +106,7 @@
                                 <input type="time" id="b-time" value="09:00" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
                             </div>
                         </div>
-
                         <div class="bg-gray-50 rounded-lg p-3 border border-gray-100">
-                            <label class="text-[10px] font-bold text-indigo-400 uppercase mb-2 block">生成范围与续接</label>
                             <div class="mb-3">
                                 <label class="text-xs text-gray-500">生成起始日</label>
                                 <input type="date" id="b-start" class="w-full mt-1 bg-white border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-indigo-500">
@@ -100,81 +114,53 @@
                             <div class="flex gap-3 items-end">
                                 <div class="flex-1">
                                     <label class="text-xs text-gray-500">起始周序号</label>
-                                    <input type="number" id="b-start-week" value="1" min="1" class="w-full mt-1 bg-white border border-gray-200 rounded px-2 py-1.5 text-sm font-bold text-indigo-600 outline-none focus:border-indigo-500">
+                                    <input type="number" id="b-start-week" value="1" min="1" class="w-full mt-1 border border-gray-200 rounded px-2 py-1.5 text-sm text-indigo-600 font-bold outline-none focus:border-indigo-500">
                                 </div>
                                 <span class="text-gray-300 mb-2">➔</span>
                                 <div class="flex-1">
                                     <label class="text-xs text-gray-500">结束周序号</label>
-                                    <input type="number" id="b-end-week" value="48" min="1" class="w-full mt-1 bg-white border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-indigo-500">
+                                    <input type="number" id="b-end-week" value="12" min="1" class="w-full mt-1 border border-gray-200 rounded px-2 py-1.5 text-sm outline-none focus:border-indigo-500">
                                 </div>
                             </div>
                         </div>
-
                         <div>
                             <label class="text-[10px] font-bold text-gray-400 uppercase mb-1 block">每周频率</label>
-                            <div class="flex justify-between gap-1">
-                                <script>
-                                    ['一','二','三','四','五','六','日'].forEach((d, i) => {
-                                        const val = i + 1;
-                                        document.write(`<label class="flex-1 cursor-pointer"><input type="checkbox" name="b-days" value="${val}" ${val<=5?'checked':''} class="peer sr-only"><div class="text-center py-1.5 rounded border border-gray-200 text-xs text-gray-500 peer-checked:bg-indigo-600 peer-checked:text-white peer-checked:border-indigo-600 transition-colors hover:bg-gray-50">${d}</div></label>`);
-                                    });
-                                </script>
-                            </div>
+                            <div class="flex justify-between gap-1" id="days-container"></div>
                         </div>
-
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">排除日期 (跳过)</label>
-                            <textarea id="b-skip" rows="2" placeholder="如 2026-05-01，逗号分隔" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-xs outline-none resize-none focus:border-indigo-500"></textarea>
-                        </div>
-                        
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">统一备注 (选填)</label>
-                            <textarea id="b-desc" rows="1" placeholder="例如：记得带课本" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-xs outline-none resize-none focus:border-indigo-500"></textarea>
-                        </div>
-
                         <button onclick="generateBatch()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95">
-                            生成并添加到预览
+                            生成并添加到本项目
                         </button>
                     </div>
                 </div>
 
-                <!-- (B) 单项模式表单 -->
+                <!-- 单项模式表单 -->
                 <div id="panel-single" class="hidden space-y-4">
                     <div class="space-y-3">
                         <div>
                             <label class="text-[10px] font-bold text-gray-400 uppercase">事项标题</label>
-                            <input type="text" id="s-title" placeholder="如：季度总结汇报、结婚纪念日" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm outline-none font-medium focus:border-indigo-500">
+                            <input type="text" id="s-title" placeholder="如：季度总结汇报" class="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
                         </div>
                         <div class="grid grid-cols-2 gap-3">
                              <div>
                                 <label class="text-[10px] font-bold text-gray-400 uppercase">日期</label>
-                                <input type="date" id="s-date" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
+                                <input type="date" id="s-date" class="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
                             </div>
                             <div>
                                 <label class="text-[10px] font-bold text-gray-400 uppercase">时间</label>
-                                <input type="time" id="s-time" value="09:00" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
+                                <input type="time" id="s-time" value="09:00" class="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
                             </div>
                         </div>
                         <div class="relative">
-                            <label class="text-[10px] font-bold text-gray-400 uppercase flex justify-between">分类 <button onclick="openCategoryModal()" class="text-indigo-600 hover:underline cursor-pointer">管理</button></label>
-                            <input list="category-list" id="s-category" placeholder="选择或输入" class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
-                        </div>
-                        <div>
-                            <label class="text-[10px] font-bold text-gray-400 uppercase">备注</label>
-                            <textarea id="s-desc" rows="2" placeholder="详情描述..." class="w-full bg-white border border-gray-200 rounded px-3 py-2 text-sm outline-none resize-none focus:border-indigo-500"></textarea>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase flex justify-between">分类</label>
+                            <input list="category-list" id="s-category" placeholder="选择或输入" class="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500">
                         </div>
                         <div class="border border-gray-200 rounded-lg p-3 flex items-center gap-3 bg-white">
                             <input type="checkbox" id="s-repeat" onchange="document.getElementById('repeat-options').classList.toggle('hidden')" class="w-4 h-4 text-indigo-600 rounded">
                             <div class="flex-1">
                                 <span class="text-xs font-bold text-gray-700 block">启用重复</span>
-                                <div id="repeat-options" class="hidden mt-1">
-                                    <select id="s-freq" class="w-full text-xs border-none bg-transparent p-0 text-indigo-600 font-bold focus:ring-0">
-                                        <option value="DAILY">每天重复</option>
-                                        <option value="WEEKLY">每周重复</option>
-                                        <option value="MONTHLY">每月重复</option>
-                                        <option value="YEARLY">每年重复</option>
-                                    </select>
-                                </div>
+                                <select id="s-freq" class="hidden mt-1 w-full text-xs border-none bg-transparent p-0 text-indigo-600 font-bold focus:ring-0" id="repeat-options">
+                                    <option value="DAILY">每天重复</option><option value="WEEKLY">每周重复</option><option value="MONTHLY">每月重复</option><option value="YEARLY">每年重复</option>
+                                </select>
                             </div>
                         </div>
                         <button onclick="addSingle()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-lg text-sm font-bold shadow-md transition-all active:scale-95">
@@ -185,100 +171,84 @@
             </div>
         </div>
 
-        <!-- 3. 右侧预览与操作区 -->
+        <!-- 右侧预览区 -->
         <div class="flex-1 bg-gray-50/50 flex flex-col min-w-0">
-            <!-- 统计条 -->
             <div class="h-12 border-b border-gray-200 bg-white px-4 flex justify-between items-center flex-none">
                 <div class="flex items-center gap-2">
-                    <span class="text-sm font-bold text-gray-800">日程预览</span>
+                    <span class="text-sm font-bold text-gray-800" id="editor-cal-name">当前日历</span>
                     <span class="bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full text-xs" id="total-badge">0</span>
                 </div>
                 <div class="flex items-center gap-3">
                     <label class="flex items-center gap-1.5 cursor-pointer select-none text-xs text-gray-600 hover:text-gray-900">
-                        <input type="checkbox" id="select-all-global" onchange="toggleSelectAllGlobal()" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
-                        全选所有
+                        <input type="checkbox" id="select-all-global" onchange="toggleSelectAllGlobal()" class="rounded border-gray-300 text-indigo-600"> 全选
                     </label>
                     <span class="h-3 w-px bg-gray-300"></span>
                     <button onclick="confirmAction('delete')" class="text-xs text-red-500 hover:text-red-700 font-medium">删除选中</button>
                 </div>
             </div>
 
-            <!-- 列表容器 -->
-            <div id="list-container" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar relative">
-                <!-- JS 动态渲染分组 -->
-            </div>
+            <div id="list-container" class="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar relative"></div>
             
-            <!-- 空状态 -->
             <div id="empty-state" class="hidden absolute inset-0 flex flex-col items-center justify-center text-gray-300 pointer-events-none z-0 mt-12">
                 <div class="bg-white p-4 rounded-full shadow-sm mb-3">
                     <svg class="w-10 h-10 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                 </div>
-                <p class="text-sm font-medium text-gray-400">列表为空</p>
-                <p class="text-xs text-gray-300 mt-1">生成的日历将在此处按批次显示</p>
+                <p class="text-sm font-medium text-gray-400">此日历暂时为空</p>
             </div>
         </div>
     </div>
 
-    <!-- 弹窗组件 -->
+    <!-- 模态框合集 -->
+    <!-- 确认操作 -->
     <div id="confirm-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity opacity-0"><div class="bg-white rounded-xl shadow-2xl p-6 w-[320px] transform scale-95 transition-transform"><h3 class="text-lg font-bold text-gray-900 mb-2" id="modal-title">确认操作</h3><p class="text-sm text-gray-500 mb-6 leading-relaxed" id="modal-msg">确定要执行此操作吗？</p><div class="flex justify-end gap-3"><button onclick="closeModal('confirm-modal')" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100">取消</button><button id="modal-confirm-btn" class="px-4 py-2 rounded-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700">确定</button></div></div></div>
     
-    <div id="category-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity opacity-0"><div class="bg-white rounded-xl shadow-2xl w-[360px] transform scale-95 transition-transform flex flex-col max-h-[80vh]"><div class="p-5 border-b border-gray-100 flex justify-between items-center"><h3 class="text-base font-bold text-gray-900">分类管理</h3><button onclick="closeModal('category-modal')" class="text-gray-400 hover:text-gray-600">✕</button></div><div class="p-5 flex-1 overflow-y-auto custom-scrollbar"><div class="flex gap-2 mb-4"><input type="text" id="new-cat-input" placeholder="输入新分类名称" class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-indigo-500"><button onclick="addCategory()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:bg-indigo-700">添加</button></div><div id="category-chips" class="flex flex-wrap gap-2"></div></div><div class="p-4 bg-gray-50 border-t border-gray-100 text-center"><button onclick="closeModal('category-modal')" class="text-indigo-600 text-xs font-bold hover:underline">完成并关闭</button></div></div></div>
+    <!-- 分类管理 -->
+    <div id="category-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity opacity-0"><div class="bg-white rounded-xl shadow-2xl w-[360px] transform scale-95 transition-transform"><div class="p-5 border-b border-gray-100 flex justify-between"><h3 class="text-base font-bold">分类管理</h3><button onclick="closeModal('category-modal')">✕</button></div><div class="p-5"><div class="flex gap-2 mb-4"><input type="text" id="new-cat-input" class="flex-1 border rounded px-3 py-1.5 text-sm"><button onclick="addCategory()" class="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm">添加</button></div><div id="category-chips" class="flex flex-wrap gap-2"></div></div></div></div>
     
-    <!-- 新增：GitHub云端同步模态框 -->
+    <!-- GitHub 同步 (带文件路径配置) -->
     <div id="github-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity opacity-0">
-        <div class="bg-white rounded-xl shadow-2xl w-[400px] transform scale-95 transition-transform flex flex-col max-h-[90vh]">
+        <div class="bg-white rounded-xl shadow-2xl w-[400px] transform scale-95 transition-transform flex flex-col">
             <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50 rounded-t-xl">
                 <div>
-                    <h3 class="text-base font-bold text-gray-900 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-gray-700" fill="currentColor" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clip-rule="evenodd"></path></svg>
-                        GitHub 云端订阅配置
-                    </h3>
-                    <p class="text-xs text-gray-500 mt-1">自动生成 webcal 链接供手机订阅</p>
+                    <h3 class="text-base font-bold text-gray-900">同步 <span id="sync-cal-name" class="text-indigo-600"></span></h3>
+                    <p class="text-xs text-gray-500 mt-1">独立保存至云端并获取专属订阅链接</p>
                 </div>
-                <button onclick="closeModal('github-modal')" class="text-gray-400 hover:text-gray-600 p-1">✕</button>
+                <button onclick="closeModal('github-modal')" class="text-gray-400 hover:text-gray-600">✕</button>
             </div>
-            
-            <div class="p-5 overflow-y-auto custom-scrollbar space-y-4">
-                <div class="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg border border-blue-100 leading-relaxed">
-                    1. 请先在 GitHub 创建一个公开仓库（例如 <span class="font-bold">calendar-sync</span>）。<br>
-                    2. 在 GitHub Settings -> Developer settings 中生成一个经典的 Personal Access Token (需勾选 repo 权限)。
+            <div class="p-5 space-y-4">
+                <input type="hidden" id="sync-cal-id">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-xs font-bold block mb-1">GitHub 用户名</label><input type="text" id="gh-user" class="w-full border rounded px-3 py-2 text-sm"></div>
+                    <div><label class="text-xs font-bold block mb-1">仓库名称</label><input type="text" id="gh-repo" class="w-full border rounded px-3 py-2 text-sm"></div>
                 </div>
-                
+                <div><label class="text-xs font-bold block mb-1">Token (带 repo 权限)</label><input type="password" id="gh-token" class="w-full border rounded px-3 py-2 text-sm"></div>
                 <div>
-                    <label class="text-xs font-bold text-gray-700 block mb-1">GitHub 用户名</label>
-                    <input type="text" id="gh-user" placeholder="例如：yourname" class="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500 transition-colors">
+                    <label class="text-xs font-bold block mb-1 text-indigo-700">保存的文件名 (关键：区分不同日历)</label>
+                    <input type="text" id="gh-path" placeholder="例如：work_calendar.ics" class="w-full border border-indigo-200 bg-indigo-50 rounded px-3 py-2 text-sm font-mono focus:border-indigo-500 outline-none">
                 </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-700 block mb-1">Personal Access Token</label>
-                    <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" class="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500 transition-colors">
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-700 block mb-1">仓库名称</label>
-                    <input type="text" id="gh-repo" placeholder="例如：calendar-sync" class="w-full border border-gray-200 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500 transition-colors">
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-700 block mb-1">文件路径 (默认无需修改)</label>
-                    <input type="text" id="gh-path" value="calendar.ics" class="w-full border border-gray-200 bg-gray-50 rounded px-3 py-2 text-sm outline-none focus:border-indigo-500 transition-colors">
-                </div>
-
-                <div id="sync-result-area" class="hidden pt-2 border-t border-gray-100">
-                    <label class="text-xs font-bold text-green-600 block mb-1 flex items-center gap-1">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                        同步成功！你的日历订阅链接：
-                    </label>
+                <div id="sync-result-area" class="hidden pt-3 border-t border-gray-100">
+                    <label class="text-xs font-bold text-green-600 block mb-1">同步成功！专属订阅链接：</label>
                     <div class="flex gap-2">
-                        <input type="text" id="gh-url-result" readonly class="w-full border border-green-200 bg-green-50 text-green-800 rounded px-3 py-2 text-xs outline-none font-mono">
-                        <button onclick="copySubscribeUrl()" class="bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-xs font-bold transition-colors whitespace-nowrap">复制</button>
+                        <input type="text" id="gh-url-result" readonly class="w-full border-green-200 bg-green-50 text-green-800 rounded px-2 py-1.5 text-xs font-mono">
+                        <button onclick="copySubscribeUrl()" class="bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold">复制</button>
                     </div>
-                    <p class="text-[10px] text-gray-400 mt-2">提示：将此链接粘贴到苹果设备的“添加订阅日历”中即可自动更新。</p>
                 </div>
             </div>
-            
-            <div class="p-4 border-t border-gray-100 bg-white flex justify-end gap-3 rounded-b-xl">
-                <button onclick="closeModal('github-modal')" class="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors">关闭</button>
-                <button id="btn-sync-action" onclick="executeGitHubSync()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-bold shadow-sm transition-all flex items-center gap-2">
-                    立即覆盖同步
-                </button>
+            <div class="p-4 border-t bg-white flex justify-end gap-3 rounded-b-xl">
+                <button onclick="closeModal('github-modal')" class="px-4 py-2 text-sm font-medium text-gray-500">关闭</button>
+                <button id="btn-sync-action" onclick="executeGitHubSync()" class="bg-indigo-600 text-white px-5 py-2 rounded-lg text-sm font-bold">立即推送到云端</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建/重命名日历模态框 -->
+    <div id="cal-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center bg-gray-900/50 backdrop-blur-sm transition-opacity opacity-0">
+        <div class="bg-white rounded-xl shadow-2xl p-6 w-[320px] transform scale-95 transition-transform">
+            <h3 class="text-lg font-bold mb-4" id="cal-modal-title">新建日历项目</h3>
+            <input type="text" id="cal-name-input" placeholder="输入日历名称 (如: 工作、考研)" class="w-full border border-gray-300 rounded px-3 py-2 text-sm focus:border-indigo-500 outline-none mb-6">
+            <div class="flex justify-end gap-3">
+                <button onclick="closeModal('cal-modal')" class="px-4 py-2 text-sm text-gray-500">取消</button>
+                <button id="cal-modal-btn" class="px-4 py-2 bg-indigo-600 text-white rounded text-sm font-bold">保存</button>
             </div>
         </div>
     </div>
@@ -288,465 +258,430 @@
     <script>
         dayjs.locale('zh-cn');
 
-        // --- 核心配置 ---
-        const BATCH_COLORS = [
-            { bg: 'bg-blue-50', border: 'border-blue-200', text: 'text-blue-700', badge: 'bg-blue-100' },
-            { bg: 'bg-green-50', border: 'border-green-200', text: 'text-green-700', badge: 'bg-green-100' },
-            { bg: 'bg-purple-50', border: 'border-purple-200', text: 'text-purple-700', badge: 'bg-purple-100' },
-            { bg: 'bg-orange-50', border: 'border-orange-200', text: 'text-orange-700', badge: 'bg-orange-100' },
-            { bg: 'bg-pink-50', border: 'border-pink-200', text: 'text-pink-700', badge: 'bg-pink-100' },
-            { bg: 'bg-cyan-50', border: 'border-cyan-200', text: 'text-cyan-700', badge: 'bg-cyan-100' },
-        ];
-
+        // --- 全新核心状态结构 (V6.0) ---
         let APP_STATE = {
-            events: [],
+            calendars: [],         // { id, name, events: [], githubPath, lastSync }
+            currentCalId: null,    // 正在编辑的日历 ID
             categories: ['学习', '工作', '生活', '健身'],
-            selectedIds: new Set()
+            selectedIds: new Set() // 选中状态仅针对当前编辑的日历有效
         };
 
+        const BATCH_COLORS = ['bg-blue-50 border-blue-200 text-blue-700', 'bg-green-50 border-green-200 text-green-700', 'bg-purple-50 border-purple-200 text-purple-700'];
+
         window.onload = function() {
-            resetForm('batch');
-            loadData();
-            loadGitHubConfig();
-            renderCategories();
-            renderGroupedList();
+            initDaysUI();
+            loadAndMigrateData();
+            loadGitHubConfigGlobal();
+            switchView('dashboard');
         };
 
         function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.classList.remove('opacity-0');
-            setTimeout(() => t.classList.add('opacity-0'), 2500);
+            const t = document.getElementById('toast'); t.innerText = msg;
+            t.classList.remove('opacity-0'); setTimeout(() => t.classList.add('opacity-0'), 2500);
         }
 
-        // --- 模态框逻辑 ---
-        function openModal(id) {
-            const el = document.getElementById(id);
-            el.classList.remove('hidden');
-            setTimeout(() => { el.classList.remove('opacity-0'); el.querySelector('div').classList.remove('scale-95'); el.querySelector('div').classList.add('scale-100'); }, 10);
-        }
-        function closeModal(id) {
-            const el = document.getElementById(id);
-            el.classList.add('opacity-0'); el.querySelector('div').classList.remove('scale-100'); el.querySelector('div').classList.add('scale-95');
-            setTimeout(() => el.classList.add('hidden'), 200);
-        }
-
-        function confirmAction(actionType, batchId = null) {
-            const title = document.getElementById('modal-title');
-            const msg = document.getElementById('modal-msg');
-            const btn = document.getElementById('modal-confirm-btn');
-
-            if (actionType === 'clear') {
-                title.innerText = '确认清空'; msg.innerText = '确定要清空所有数据吗？不可恢复。'; btn.onclick = executeClear;
-            } else if (actionType === 'delete') {
-                if (APP_STATE.selectedIds.size === 0) return showToast('未选中任何项');
-                title.innerText = '确认删除'; msg.innerText = `确定删除选中的 ${APP_STATE.selectedIds.size} 项吗？`; btn.onclick = executeDelete;
-            } else if (actionType === 'deleteBatch') {
-                title.innerText = '删除整个计划'; msg.innerText = '确定要删除该批次下的所有日程吗？'; 
-                btn.onclick = () => executeDeleteBatch(batchId);
+        // --- 数据加载与无缝迁移逻辑 ---
+        function loadAndMigrateData() {
+            const v6Data = localStorage.getItem('SmartCalendar_V6');
+            if (v6Data) {
+                const parsed = JSON.parse(v6Data);
+                APP_STATE.calendars = parsed.calendars || [];
+                APP_STATE.categories = parsed.categories || APP_STATE.categories;
+            } else {
+                // 检测是否存在 V4/V5 旧数据，进行无损迁移
+                const oldEvents = localStorage.getItem('SmartCalendarV4_Data');
+                if (oldEvents) {
+                    const parsedEvents = JSON.parse(oldEvents);
+                    if (parsedEvents.length > 0) {
+                        APP_STATE.calendars.push({
+                            id: 'cal_' + Date.now(),
+                            name: '默认日历 (旧版升级)',
+                            events: parsedEvents,
+                            githubPath: 'calendar.ics',
+                            lastSync: null
+                        });
+                    }
+                }
+                const oldCats = localStorage.getItem('SmartCalendarV3_Cats');
+                if (oldCats) APP_STATE.categories = JSON.parse(oldCats);
+                saveV6Data(); // 立刻保存为新格式
             }
-            openModal('confirm-modal');
+            renderCategories();
         }
 
-        function executeClear() {
-            APP_STATE.events = []; APP_STATE.selectedIds.clear(); saveData(); showToast("已清空"); closeModal('confirm-modal');
+        function saveV6Data() {
+            // 剔除 selectedIds (不需要持久化)
+            const dataToSave = { calendars: APP_STATE.calendars, categories: APP_STATE.categories };
+            localStorage.setItem('SmartCalendar_V6', JSON.stringify(dataToSave));
+            renderDashboard(); 
+            if (APP_STATE.currentCalId) renderEditorList();
         }
-        function executeDelete() {
-            APP_STATE.events = APP_STATE.events.filter(e => !APP_STATE.selectedIds.has(e.id)); APP_STATE.selectedIds.clear(); saveData(); showToast("已删除选中项"); closeModal('confirm-modal');
+
+        // --- 视图控制器 ---
+        function switchView(viewName) {
+            document.getElementById('view-dashboard').classList.toggle('hidden', viewName !== 'dashboard');
+            document.getElementById('view-editor').classList.toggle('hidden', viewName !== 'editor');
+            document.getElementById('editor-actions').classList.toggle('hidden', viewName !== 'editor');
+            
+            const subtitle = document.getElementById('header-subtitle');
+            if (viewName === 'dashboard') {
+                APP_STATE.currentCalId = null;
+                APP_STATE.selectedIds.clear();
+                subtitle.innerText = "多日历项目管理控制台";
+                renderDashboard();
+            } else {
+                const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
+                subtitle.innerText = `正在编辑: ${cal.name}`;
+                document.getElementById('editor-cal-name').innerText = cal.name;
+                resetForm('batch');
+                renderEditorList();
+            }
         }
-        function executeDeleteBatch(batchId) {
-            APP_STATE.events = APP_STATE.events.filter(e => e.batchId !== batchId);
-            APP_STATE.selectedIds = new Set([...APP_STATE.selectedIds].filter(id => true));
-            saveData(); showToast("批次已删除"); closeModal('confirm-modal');
+
+        // --- 工作台逻辑 (Dashboard) ---
+        function renderDashboard() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            
+            APP_STATE.calendars.forEach(cal => {
+                const syncText = cal.lastSync ? dayjs(cal.lastSync).format('MM-DD HH:mm') : '未同步';
+                const html = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow flex flex-col h-48">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-lg font-bold text-gray-800 truncate pr-2 cursor-pointer hover:text-indigo-600" onclick="enterEditor('${cal.id}')">${cal.name}</h3>
+                            <button onclick="promptEditCalendar('${cal.id}')" class="text-gray-400 hover:text-indigo-600"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg></button>
+                        </div>
+                        <div class="text-xs text-gray-500 mb-4 flex-1">
+                            <p>包含事项：<span class="font-bold text-gray-700">${cal.events.length}</span> 项</p>
+                            <p>云端文件：<span class="font-mono bg-gray-100 px-1 rounded">${cal.githubPath || '未设置'}</span></p>
+                            <p>最后同步：${syncText}</p>
+                        </div>
+                        <div class="flex gap-2 border-t border-gray-100 pt-3">
+                            <button onclick="enterEditor('${cal.id}')" class="flex-1 bg-indigo-50 text-indigo-700 text-xs font-bold py-2 rounded hover:bg-indigo-100 transition">管理日程</button>
+                            <button onclick="quickSync('${cal.id}')" class="flex-1 bg-white border border-gray-200 text-gray-700 text-xs font-bold py-2 rounded hover:bg-gray-50 transition">一键同步</button>
+                            <button onclick="confirmAction('deleteCal', '${cal.id}')" class="px-3 bg-red-50 text-red-600 rounded hover:bg-red-100 transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg></button>
+                        </div>
+                    </div>
+                `;
+                grid.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        function enterEditor(calId) {
+            APP_STATE.currentCalId = calId;
+            // 默认全选当前日历的所有事项，方便一键同步
+            const cal = APP_STATE.calendars.find(c => c.id === calId);
+            APP_STATE.selectedIds = new Set(cal.events.map(e => e.id));
+            switchView('editor');
+        }
+
+        function promptCreateCalendar() {
+            document.getElementById('cal-modal-title').innerText = '新建日历项目';
+            const input = document.getElementById('cal-name-input');
+            input.value = '';
+            document.getElementById('cal-modal-btn').onclick = () => {
+                const name = input.value.trim();
+                if (!name) return showToast('名称不能为空');
+                const newId = 'cal_' + Date.now();
+                // 默认生成安全的英文文件名
+                const safeName = name.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase() || newId;
+                APP_STATE.calendars.push({
+                    id: newId, name: name, events: [], githubPath: `${safeName}.ics`, lastSync: null
+                });
+                saveV6Data(); closeModal('cal-modal'); showToast('创建成功');
+            };
+            openModal('cal-modal');
+        }
+
+        function promptEditCalendar(calId) {
+            const cal = APP_STATE.calendars.find(c => c.id === calId);
+            document.getElementById('cal-modal-title').innerText = '重命名日历';
+            const input = document.getElementById('cal-name-input');
+            input.value = cal.name;
+            document.getElementById('cal-modal-btn').onclick = () => {
+                const name = input.value.trim();
+                if (!name) return showToast('名称不能为空');
+                cal.name = name;
+                saveV6Data(); closeModal('cal-modal');
+            };
+            openModal('cal-modal');
+        }
+
+        // --- 编辑器核心逻辑 (作用于当前日历) ---
+        function initDaysUI() {
+            const container = document.getElementById('days-container');
+            ['一','二','三','四','五','六','日'].forEach((d, i) => {
+                const val = i + 1;
+                container.insertAdjacentHTML('beforeend', `<label class="flex-1 cursor-pointer"><input type="checkbox" name="b-days" value="${val}" ${val<=5?'checked':''} class="peer sr-only"><div class="text-center py-1 rounded border border-gray-200 text-xs text-gray-500 peer-checked:bg-indigo-600 peer-checked:text-white transition-colors">${d}</div></label>`);
+            });
         }
 
         function resetForm(mode) {
             const today = dayjs().format('YYYY-MM-DD');
             if (mode === 'batch') {
                 document.getElementById('b-name').value = '';
-                document.getElementById('b-category').value = '';
-                document.getElementById('b-time').value = '09:00';
                 document.getElementById('b-start').value = today;
-                document.getElementById('b-start-week').value = '1';
-                document.getElementById('b-end-week').value = '48';
-                document.getElementById('b-skip').value = '';
-                document.getElementById('b-desc').value = '';
                 document.querySelectorAll('input[name="b-days"]').forEach(cb => cb.checked = cb.value <= 5);
             } else {
                 document.getElementById('s-title').value = '';
                 document.getElementById('s-date').value = today;
-                document.getElementById('s-time').value = '09:00';
-                document.getElementById('s-category').value = '';
-                document.getElementById('s-desc').value = '';
-                document.getElementById('s-repeat').checked = false;
-                document.getElementById('repeat-options').classList.add('hidden');
             }
         }
 
-        function getNextColor() {
-            const distinctBatches = new Set(APP_STATE.events.filter(e => e.batchId).map(e => e.batchId)).size;
-            return distinctBatches % BATCH_COLORS.length;
+        function switchMode(mode) {
+            document.getElementById('panel-batch').classList.toggle('hidden', mode !== 'batch');
+            document.getElementById('panel-single').classList.toggle('hidden', mode !== 'single');
+            const a = "flex-1 py-3 text-xs font-bold text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50";
+            const i = "flex-1 py-3 text-xs font-medium text-gray-500 hover:bg-gray-50";
+            document.getElementById('tab-batch').className = mode === 'batch' ? a : i;
+            document.getElementById('tab-single').className = mode === 'single' ? a : i;
         }
 
         function generateBatch() {
             const name = document.getElementById('b-name').value.trim();
-            const category = document.getElementById('b-category').value || '计划';
-            const timeStr = document.getElementById('b-time').value;
-            const startStr = document.getElementById('b-start').value; 
-            const startWeek = parseInt(document.getElementById('b-start-week').value);
-            const endWeek = parseInt(document.getElementById('b-end-week').value);
-            const desc = document.getElementById('b-desc').value; 
-            const skipText = document.getElementById('b-skip').value;
-            const daysChecked = Array.from(document.querySelectorAll('input[name="b-days"]:checked')).map(cb => parseInt(cb.value));
-            const skipDates = (skipText.match(/\d{4}-\d{2}-\d{2}/g) || []);
+            const startStr = document.getElementById('b-start').value;
+            const startW = parseInt(document.getElementById('b-start-week').value);
+            const endW = parseInt(document.getElementById('b-end-week').value);
+            const days = Array.from(document.querySelectorAll('input[name="b-days"]:checked')).map(cb => parseInt(cb.value));
 
-            if (!name || daysChecked.length === 0) return showToast("名称和周频率必填");
-            if (startWeek > endWeek) return showToast("起始周错误");
-
-            const batchId = Date.now().toString(); 
-            const colorIdx = getNextColor();
-
+            if (!name || days.length === 0) return showToast("名称和周频率必填");
+            
+            const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
+            const batchId = Date.now().toString();
             let newEvents = [];
-            let inputStartDate = dayjs(startStr);
-            let dayIdx = inputStartDate.day() === 0 ? 7 : inputStartDate.day();
-            let mondayOfStartWeek = inputStartDate.subtract(dayIdx - 1, 'day');
+            let mon = dayjs(startStr).subtract(dayjs(startStr).day()===0?6:dayjs(startStr).day()-1, 'day');
             const dayMap = {1:'周一', 2:'周二', 3:'周三', 4:'周四', 5:'周五', 6:'周六', 7:'周日'};
 
-            for (let w = startWeek; w <= endWeek; w++) {
-                let weekOffset = w - startWeek;
-                daysChecked.forEach(d => {
-                    let currentDay = mondayOfStartWeek.add(weekOffset, 'week').add(d - 1, 'day');
-                    let dateStr = currentDay.format('YYYY-MM-DD');
-                    if (skipDates.includes(dateStr) || dayjs(dateStr).isBefore(inputStartDate, 'day')) return;
-
+            for (let w = startW; w <= endW; w++) {
+                days.forEach(d => {
+                    let cDay = mon.add(w - startW, 'week').add(d - 1, 'day');
+                    if (cDay.isBefore(dayjs(startStr), 'day')) return;
                     const evtId = Date.now() + Math.random();
                     newEvents.push({
-                        id: evtId,
-                        title: `${name} 第${w}周 ${dayMap[d]}`,
-                        date: dateStr, time: timeStr, category, desc,
-                        type: 'batch',
-                        batchId: batchId,
-                        batchName: name,
-                        batchColor: colorIdx
+                        id: evtId, title: `${name} 第${w}周 ${dayMap[d]}`,
+                        date: cDay.format('YYYY-MM-DD'), time: document.getElementById('b-time').value,
+                        category: document.getElementById('b-category').value || '计划', desc: '',
+                        batchId: batchId, batchName: name
                     });
                     APP_STATE.selectedIds.add(evtId);
                 });
             }
-
-            APP_STATE.events = [...APP_STATE.events, ...newEvents];
-            saveData();
-            showToast(`生成 ${newEvents.length} 项，表单已重置`);
-            resetForm('batch');
+            cal.events.push(...newEvents);
+            saveV6Data(); showToast(`已向本日历添加 ${newEvents.length} 项`); resetForm('batch');
         }
 
         function addSingle() {
             const title = document.getElementById('s-title').value.trim();
-            const date = document.getElementById('s-date').value;
-            const time = document.getElementById('s-time').value;
-            const category = document.getElementById('s-category').value || '事项';
-            const desc = document.getElementById('s-desc').value;
-            const isRepeat = document.getElementById('s-repeat').checked;
-            
-            if (!title || !date) return showToast("标题和日期必填");
-            
+            if (!title) return showToast("标题必填");
             const evtId = Date.now();
-            APP_STATE.events.push({
-                id: evtId, title, date, time, category, desc, type: 'single',
-                rrule: isRepeat ? document.getElementById('s-freq').value : null
+            const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
+            cal.events.push({
+                id: evtId, title: title, date: document.getElementById('s-date').value,
+                time: document.getElementById('s-time').value, category: document.getElementById('s-category').value || '事项',
+                rrule: document.getElementById('s-repeat').checked ? document.getElementById('s-freq').value : null
             });
             APP_STATE.selectedIds.add(evtId);
-            saveData();
-            showToast("添加成功，表单已重置");
-            resetForm('single');
+            saveV6Data(); showToast("添加成功"); resetForm('single');
         }
 
-        function renderGroupedList() {
+        // --- 编辑器列表渲染 ---
+        function renderEditorList() {
+            const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
             const container = document.getElementById('list-container');
-            const emptyState = document.getElementById('empty-state');
-            document.getElementById('total-badge').innerText = APP_STATE.events.length;
+            document.getElementById('total-badge').innerText = cal.events.length;
             
-            container.innerHTML = '';
-            if (APP_STATE.events.length === 0) {
-                emptyState.classList.remove('hidden'); return;
+            if (cal.events.length === 0) {
+                container.innerHTML = ''; document.getElementById('empty-state').classList.remove('hidden'); return;
             }
-            emptyState.classList.add('hidden');
+            document.getElementById('empty-state').classList.add('hidden');
 
-            const groups = {}; 
-            const batchMeta = {};
-
-            APP_STATE.events.forEach(e => {
+            const groups = {};
+            cal.events.forEach(e => {
                 const key = e.batchId || 'single';
-                if (!groups[key]) {
-                    groups[key] = [];
-                    if (e.batchId) {
-                        batchMeta[key] = { name: e.batchName, colorIdx: e.batchColor || 0, count: 0 };
-                    }
-                }
-                groups[key].push(e);
-                if (e.batchId) batchMeta[key].count++;
+                if (!groups[key]) groups[key] = { items: [], name: e.batchName || '单项日程' };
+                groups[key].items.push(e);
             });
 
-            const batchKeys = Object.keys(groups).filter(k => k !== 'single').sort().reverse();
-            
-            const renderEventItem = (evt, bgColorClass = 'bg-white') => {
-                const isSel = APP_STATE.selectedIds.has(evt.id);
-                const dayObj = dayjs(evt.date);
-                const freqMap = { DAILY: '每天', WEEKLY: '每周', MONTHLY: '每月', YEARLY: '每年' };
+            container.innerHTML = Object.keys(groups).map((key, idx) => {
+                const g = groups[key];
+                g.items.sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
+                const cCls = BATCH_COLORS[idx % BATCH_COLORS.length];
                 
                 return `
-                    <div class="flex items-center gap-3 p-2 rounded-md transition-colors ${isSel ? 'bg-indigo-50 border border-indigo-100' : `${bgColorClass} border border-transparent hover:bg-gray-50`}">
-                        <input type="checkbox" onchange="toggleItemSelection(${evt.id})" ${isSel ? 'checked' : ''} class="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer">
-                        <div class="flex items-center gap-2 text-xs text-gray-400 w-16 flex-none">
-                            <span class="font-bold text-gray-700">${dayObj.format('MM-DD')}</span>
-                            <span>${dayObj.format('ddd')}</span>
-                        </div>
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-medium text-gray-800 truncate">${evt.title}</span>
-                                <span class="text-[10px] px-1.5 rounded-full bg-gray-100 text-gray-600">${evt.category}</span>
-                                ${evt.rrule ? `<span class="text-[10px] px-1.5 rounded-full bg-purple-100 text-purple-700">${freqMap[evt.rrule]}</span>` : ''}
+                <details class="bg-white rounded-lg border shadow-sm mb-3 overflow-hidden ${key==='single'?'border-gray-200':cCls.split(' ')[1]}" open>
+                    <summary class="flex justify-between p-3 cursor-pointer select-none ${key==='single'?'bg-gray-50':cCls.split(' ')[0]}">
+                        <div class="font-bold text-sm ${key==='single'?'text-gray-700':cCls.split(' ')[2]}">▶ ${g.name} <span class="text-xs font-normal text-gray-500 ml-2">(${g.items.length})</span></div>
+                        <button onclick="confirmAction('deleteBatch', '${key}')" class="text-[10px] text-red-400 hover:text-red-600">删除组</button>
+                    </summary>
+                    <div class="p-2 space-y-1 bg-white">
+                        ${g.items.map(e => `
+                            <div class="flex items-center gap-3 p-2 rounded-md ${APP_STATE.selectedIds.has(e.id)?'bg-indigo-50 border border-indigo-100':'hover:bg-gray-50 border border-transparent'}">
+                                <input type="checkbox" onchange="toggleSel(${e.id})" ${APP_STATE.selectedIds.has(e.id)?'checked':''} class="w-4 h-4 rounded text-indigo-600">
+                                <span class="text-xs text-gray-500 font-mono w-12">${dayjs(e.date).format('MM-DD')}</span>
+                                <span class="text-sm font-medium text-gray-800 flex-1 truncate">${e.title}</span>
+                                <span class="text-[10px] bg-gray-100 px-1.5 rounded">${e.category}</span>
                             </div>
-                        </div>
+                        `).join('')}
                     </div>
-                `;
-            };
-
-            batchKeys.forEach(bid => {
-                const meta = batchMeta[bid];
-                const items = groups[bid].sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
-                const colorTheme = BATCH_COLORS[meta.colorIdx % BATCH_COLORS.length];
-                
-                const html = `
-                    <details class="group bg-white rounded-lg border ${colorTheme.border} shadow-sm overflow-hidden mb-3" open>
-                        <summary class="flex items-center justify-between p-3 cursor-pointer ${colorTheme.bg} hover:opacity-90 transition-opacity select-none">
-                            <div class="flex items-center gap-3">
-                                <span class="transform group-open:rotate-90 transition-transform text-gray-400">▶</span>
-                                <span class="font-bold text-sm ${colorTheme.text}">${meta.name}</span>
-                                <span class="text-[10px] px-2 py-0.5 rounded-full bg-white/60 text-gray-600 font-medium">${items.length}项</span>
-                            </div>
-                            <div class="flex items-center gap-3" onclick="event.preventDefault()">
-                                <button onclick="toggleBatchSelect('${bid}', true)" class="text-[10px] text-gray-500 hover:text-indigo-600">全选本组</button>
-                                <button onclick="confirmAction('deleteBatch', '${bid}')" class="text-[10px] text-red-400 hover:text-red-600">删除整组</button>
-                            </div>
-                        </summary>
-                        <div class="p-2 space-y-1 bg-white">
-                            ${items.map(evt => renderEventItem(evt)).join('')}
-                        </div>
-                    </details>
-                `;
-                container.insertAdjacentHTML('beforeend', html);
-            });
-
-            if (groups['single'] && groups['single'].length > 0) {
-                const items = groups['single'].sort((a,b) => (a.date+a.time).localeCompare(b.date+b.time));
-                const html = `
-                    <details class="group bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden mb-3" open>
-                        <summary class="flex items-center justify-between p-3 cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors select-none">
-                            <div class="flex items-center gap-3">
-                                <span class="transform group-open:rotate-90 transition-transform text-gray-400">▶</span>
-                                <span class="font-bold text-sm text-gray-700">单项 / 其他事项</span>
-                                <span class="text-[10px] px-2 py-0.5 rounded-full bg-white text-gray-500 border border-gray-200">${items.length}项</span>
-                            </div>
-                        </summary>
-                        <div class="p-2 space-y-1 bg-white">
-                            ${items.map(evt => renderEventItem(evt)).join('')}
-                        </div>
-                    </details>
-                `;
-                container.insertAdjacentHTML('beforeend', html);
-            }
+                </details>`;
+            }).join('');
         }
 
-        function toggleItemSelection(id) {
-            if (APP_STATE.selectedIds.has(id)) APP_STATE.selectedIds.delete(id);
-            else APP_STATE.selectedIds.add(id);
-            renderGroupedList(); 
-        }
-        function toggleBatchSelect(batchId, selectAll) {
-            const batchEvents = APP_STATE.events.filter(e => e.batchId === batchId);
-            const allSelected = batchEvents.every(e => APP_STATE.selectedIds.has(e.id));
-            batchEvents.forEach(e => {
-                if (allSelected) APP_STATE.selectedIds.delete(e.id);
-                else APP_STATE.selectedIds.add(e.id); 
-            });
-            renderGroupedList();
+        function toggleSel(id) {
+            APP_STATE.selectedIds.has(id) ? APP_STATE.selectedIds.delete(id) : APP_STATE.selectedIds.add(id);
+            renderEditorList();
         }
         function toggleSelectAllGlobal() {
-            const allChecked = document.getElementById('select-all-global').checked;
-            if (allChecked) APP_STATE.events.forEach(e => APP_STATE.selectedIds.add(e.id));
+            const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
+            const chk = document.getElementById('select-all-global').checked;
+            if (chk) cal.events.forEach(e => APP_STATE.selectedIds.add(e.id));
             else APP_STATE.selectedIds.clear();
-            renderGroupedList();
+            renderEditorList();
         }
 
-        function openCategoryModal() { renderCategoryChips(); openModal('category-modal'); }
-        function addCategory() { 
-            const val = document.getElementById('new-cat-input').value.trim();
-            if (val && !APP_STATE.categories.includes(val)) { APP_STATE.categories.push(val); saveCategories(); renderCategoryChips(); renderCategories(); document.getElementById('new-cat-input').value=''; }
-        }
-        function removeCategory(val) { APP_STATE.categories = APP_STATE.categories.filter(c => c !== val); saveCategories(); renderCategoryChips(); renderCategories(); }
-        function saveCategories() { localStorage.setItem('SmartCalendarV3_Cats', JSON.stringify(APP_STATE.categories)); }
-        function renderCategories() { document.getElementById('category-list').innerHTML = APP_STATE.categories.map(c => `<option value="${c}">`).join(''); }
-        function renderCategoryChips() { document.getElementById('category-chips').innerHTML = APP_STATE.categories.map(c => `<div class="flex items-center gap-1 px-2 py-1 rounded bg-gray-100 border border-gray-200 text-xs text-gray-700"><span>${c}</span><button onclick="removeCategory('${c}')" class="text-gray-400 hover:text-red-500 ml-1 font-bold">×</button></div>`).join(''); }
-
-        function saveData() { localStorage.setItem('SmartCalendarV4_Data', JSON.stringify(APP_STATE.events)); renderGroupedList(); }
-        function loadData() {
-            try {
-                const d = localStorage.getItem('SmartCalendarV4_Data'); if (d) APP_STATE.events = JSON.parse(d);
-                const c = localStorage.getItem('SmartCalendarV3_Cats'); if (c) APP_STATE.categories = JSON.parse(c);
-            } catch(e) { APP_STATE.events = []; }
-        }
-        function switchMode(mode) {
-            document.getElementById('panel-batch').classList.toggle('hidden', mode !== 'batch');
-            document.getElementById('panel-single').classList.toggle('hidden', mode !== 'single');
-            const a = "flex-1 py-3 text-xs font-bold text-indigo-600 border-b-2 border-indigo-600 bg-indigo-50/50 transition-all";
-            const i = "flex-1 py-3 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-all";
-            if(mode==='batch'){ document.getElementById('tab-batch').className=a; document.getElementById('tab-single').className=i; }
-            else { document.getElementById('tab-single').className=a; document.getElementById('tab-batch').className=i; }
-        }
-
-        // --- ICS 核心生成器 ---
-        function generateICSContent() {
-            const eventsToExport = APP_STATE.events.filter(e => APP_STATE.selectedIds.has(e.id));
-            let ics = [
-                'BEGIN:VCALENDAR', 
-                'VERSION:2.0', 
-                'PRODID:-//SmartGen//CalendarV5//CN', 
-                'CALSCALE:GREGORIAN', 
-                'METHOD:PUBLISH',
-                'X-WR-CALNAME:智能云端日历' // 为订阅日历增加统一名称
-            ];
-            eventsToExport.forEach(e => {
-                ics.push('BEGIN:VEVENT'); 
-                ics.push(`UID:${e.id}@smartgen.local`); 
-                ics.push(`DTSTAMP:${dayjs().format('YYYYMMDDTHHmmss')}Z`);
-                const start = dayjs(`${e.date} ${e.time}`); 
-                ics.push(`DTSTART:${start.format('YYYYMMDDTHHmmss')}`); 
-                ics.push(`DTEND:${start.add(1, 'hour').format('YYYYMMDDTHHmmss')}`);
-                ics.push(`SUMMARY:${e.title}`); 
-                let d=e.desc||''; d+=` [分类:${e.category}]`; 
-                ics.push(`DESCRIPTION:${d}`);
-                if(e.rrule) ics.push(`RRULE:FREQ=${e.rrule}`);
-                ics.push('BEGIN:VALARM', 'TRIGGER:-PT30M', 'ACTION:DISPLAY', 'DESCRIPTION:Reminder', 'END:VALARM', 'END:VEVENT');
-            });
-            ics.push('END:VCALENDAR');
-            return ics.join('\r\n');
-        }
-
-        // --- 本地下载功能 ---
-        function exportSelected() {
-            if (APP_STATE.selectedIds.size === 0) return showToast("未选中任何项，无法下载");
-            const icsText = generateICSContent();
-            const blob = new Blob([icsText], { type: 'text/calendar;charset=utf-8' });
-            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); 
-            link.download = `智能日历_${dayjs().format('MMDD_HHmm')}.ics`; 
-            document.body.appendChild(link); link.click(); document.body.removeChild(link);
-        }
-
-        // --- GitHub 云端同步核心模块 ---
-        function loadGitHubConfig() {
-            const conf = localStorage.getItem('SmartCalendar_GitHubConf');
-            if (conf) {
-                const parsed = JSON.parse(conf);
-                document.getElementById('gh-user').value = parsed.user || '';
-                document.getElementById('gh-token').value = parsed.token || '';
-                document.getElementById('gh-repo').value = parsed.repo || '';
-                document.getElementById('gh-path').value = parsed.path || 'calendar.ics';
+        // --- 模态框与通用交互 ---
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); setTimeout(()=>document.getElementById(id).classList.remove('opacity-0'), 10); }
+        function closeModal(id) { document.getElementById(id).classList.add('opacity-0'); setTimeout(()=>document.getElementById(id).classList.add('hidden'), 200); }
+        
+        function confirmAction(type, targetId = null) {
+            const btn = document.getElementById('modal-confirm-btn');
+            if (type === 'delete') {
+                document.getElementById('modal-msg').innerText = `删除选定的 ${APP_STATE.selectedIds.size} 项？`;
+                btn.onclick = () => {
+                    const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
+                    cal.events = cal.events.filter(e => !APP_STATE.selectedIds.has(e.id));
+                    APP_STATE.selectedIds.clear(); saveV6Data(); closeModal('confirm-modal');
+                };
+            } else if (type === 'deleteBatch') {
+                document.getElementById('modal-msg').innerText = '删除该组下所有日程？';
+                btn.onclick = () => {
+                    const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
+                    cal.events = cal.events.filter(e => targetId === 'single' ? e.batchId : e.batchId !== targetId);
+                    saveV6Data(); closeModal('confirm-modal');
+                };
+            } else if (type === 'deleteCal') {
+                document.getElementById('modal-msg').innerText = '将永久删除此日历项目及所有日程，确定？';
+                btn.onclick = () => {
+                    APP_STATE.calendars = APP_STATE.calendars.filter(c => c.id !== targetId);
+                    saveV6Data(); closeModal('confirm-modal');
+                };
             }
+            openModal('confirm-modal');
         }
 
-        function saveGitHubConfig(user, token, repo, path) {
-            localStorage.setItem('SmartCalendar_GitHubConf', JSON.stringify({ user, token, repo, path }));
+        // 分类
+        function openCategoryModal() { document.getElementById('category-chips').innerHTML = APP_STATE.categories.map(c=>`<span class="bg-gray-100 px-2 py-1 rounded text-xs">${c}</span>`).join(''); openModal('category-modal'); }
+        function addCategory() { const v = document.getElementById('new-cat-input').value.trim(); if(v && !APP_STATE.categories.includes(v)) { APP_STATE.categories.push(v); saveV6Data(); openCategoryModal(); } }
+        function renderCategories() { document.getElementById('category-list').innerHTML = APP_STATE.categories.map(c=>`<option value="${c}">`).join(''); }
+
+        // --- 核心：导出与云端同步 ---
+        function buildICS(events) {
+            let ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SmartGen//V6//CN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH'];
+            events.forEach(e => {
+                ics.push('BEGIN:VEVENT', `UID:${e.id}@smartgen.local`, `DTSTAMP:${dayjs().format('YYYYMMDDTHHmmss')}Z`);
+                const start = dayjs(`${e.date} ${e.time}`);
+                ics.push(`DTSTART:${start.format('YYYYMMDDTHHmmss')}`, `DTEND:${start.add(1,'h').format('YYYYMMDDTHHmmss')}`);
+                ics.push(`SUMMARY:${e.title}`, `DESCRIPTION:[分类:${e.category}]`);
+                if(e.rrule) ics.push(`RRULE:FREQ=${e.rrule}`);
+                ics.push('END:VEVENT');
+            });
+            ics.push('END:VCALENDAR'); return ics.join('\r\n');
         }
 
-        function utf8ToBase64(str) {
-            return window.btoa(unescape(encodeURIComponent(str)));
+        function exportSelected() {
+            if (APP_STATE.selectedIds.size === 0) return showToast("未选中");
+            const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
+            const events = cal.events.filter(e => APP_STATE.selectedIds.has(e.id));
+            const blob = new Blob([buildICS(events)], { type: 'text/calendar;charset=utf-8' });
+            const link = document.createElement('a'); link.href = URL.createObjectURL(blob); 
+            link.download = `${cal.name}_${dayjs().format('MMDD')}.ics`; link.click();
+        }
+
+        // GitHub 逻辑
+        function loadGitHubConfigGlobal() {
+            const conf = JSON.parse(localStorage.getItem('SmartCalendar_GitHubConf') || '{}');
+            document.getElementById('gh-user').value = conf.user || '';
+            document.getElementById('gh-repo').value = conf.repo || '';
+            document.getElementById('gh-token').value = conf.token || '';
+        }
+
+        function openGitHubModalForCurrent() {
+            const cal = APP_STATE.calendars.find(c => c.id === APP_STATE.currentCalId);
+            if (APP_STATE.selectedIds.size === 0) {
+                // 如果在编辑器中未选中，提示。或者帮他默认全选
+                showToast("请先在左侧勾选要同步的日程"); return;
+            }
+            prepareGitHubModal(cal);
+        }
+
+        function quickSync(calId) {
+            const cal = APP_STATE.calendars.find(c => c.id === calId);
+            if (cal.events.length === 0) return showToast("该日历为空，无需同步");
+            // 快速同步：自动全选该日历所有事件
+            APP_STATE.currentCalId = calId;
+            APP_STATE.selectedIds = new Set(cal.events.map(e => e.id));
+            prepareGitHubModal(cal);
+        }
+
+        function prepareGitHubModal(cal) {
+            document.getElementById('sync-cal-id').value = cal.id;
+            document.getElementById('sync-cal-name').innerText = cal.name;
+            document.getElementById('gh-path').value = cal.githubPath || `${cal.id}.ics`;
+            document.getElementById('sync-result-area').classList.add('hidden');
+            openModal('github-modal');
         }
 
         async function executeGitHubSync() {
-            if (APP_STATE.selectedIds.size === 0) {
-                showToast("未选中任何需同步的日程");
-                return;
-            }
-
             const user = document.getElementById('gh-user').value.trim();
-            const token = document.getElementById('gh-token').value.trim();
             const repo = document.getElementById('gh-repo').value.trim();
-            const path = document.getElementById('gh-path').value.trim() || 'calendar.ics';
+            const token = document.getElementById('gh-token').value.trim();
+            const path = document.getElementById('gh-path').value.trim();
+            const calId = document.getElementById('sync-cal-id').value;
+            const cal = APP_STATE.calendars.find(c => c.id === calId);
 
-            if (!user || !token || !repo) {
-                showToast("请完整填写 GitHub 账号与仓库信息");
-                return;
-            }
-
-            saveGitHubConfig(user, token, repo, path);
+            if (!user || !repo || !token || !path) return showToast("配置不完整");
+            
+            // 保存全局配置和特定日历的文件名配置
+            localStorage.setItem('SmartCalendar_GitHubConf', JSON.stringify({ user, repo, token }));
+            cal.githubPath = path;
+            saveV6Data(); // 持久化文件名
 
             const btn = document.getElementById('btn-sync-action');
-            btn.innerText = "处理中..."; btn.disabled = true;
+            btn.innerText = "同步中..."; btn.disabled = true;
 
             try {
+                const events = cal.events.filter(e => APP_STATE.selectedIds.has(e.id));
+                const b64 = window.btoa(unescape(encodeURIComponent(buildICS(events))));
                 const apiUrl = `https://api.github.com/repos/${user}/${repo}/contents/${path}`;
-                const icsContent = generateICSContent();
-                const b64Content = utf8ToBase64(icsContent);
-
-                // 1. 尝试获取现有文件，检查是否需要覆盖更新 (需要拿到文件的 SHA 值)
-                let currentSha = null;
-                const getRes = await fetch(apiUrl, {
-                    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
-                });
                 
-                if (getRes.ok) {
-                    const data = await getRes.json();
-                    currentSha = data.sha;
-                } else if (getRes.status !== 404) {
-                    throw new Error("连接仓库失败，请检查 Token 权限和仓库名称");
-                }
-
-                // 2. 推送文件更新或创建
-                const putBody = {
-                    message: `Auto-sync calendar via SmartGen at ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`,
-                    content: b64Content
-                };
-                if (currentSha) putBody.sha = currentSha;
+                let sha = null;
+                const getRes = await fetch(apiUrl, { headers: { 'Authorization': `token ${token}` } });
+                if (getRes.ok) sha = (await getRes.json()).sha;
 
                 const putRes = await fetch(apiUrl, {
                     method: 'PUT',
-                    headers: {
-                        'Authorization': `token ${token}`,
-                        'Accept': 'application/vnd.github.v3+json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(putBody)
+                    headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: `Sync ${cal.name} via V6`, content: b64, sha })
                 });
 
-                if (!putRes.ok) {
-                    const errorMsg = await putRes.json();
-                    throw new Error(errorMsg.message || "上传文件失败");
-                }
+                if (!putRes.ok) throw new Error("上传失败，请检查 Token 权限");
 
-                // 3. 成功后构建订阅 URL
-                // GitHub 原生内容链接：https://raw.githubusercontent.com/user/repo/main/calendar.ics
-                // 替换为 webcal:// 强制设备作为日历订阅打开
-                const branch = 'main'; // 默认主分支，视GitHub设置也可能是 master
-                const rawUrl = `webcal://raw.githubusercontent.com/${user}/${repo}/${branch}/${path}`;
-                
-                document.getElementById('gh-url-result').value = rawUrl;
+                cal.lastSync = new Date().toISOString();
+                saveV6Data(); // 更新同步时间
+
+                document.getElementById('gh-url-result').value = `webcal://raw.githubusercontent.com/${user}/${repo}/main/${path}`;
                 document.getElementById('sync-result-area').classList.remove('hidden');
-                showToast("✅ 云端同步成功，请复制订阅链接");
-
+                showToast("同步成功");
             } catch (err) {
-                console.error(err);
-                alert("同步出现错误: \n" + err.message);
+                alert(err.message);
             } finally {
-                btn.innerText = "立即覆盖同步"; 
-                btn.disabled = false;
+                btn.innerText = "立即推送到云端"; btn.disabled = false;
             }
         }
 
         function copySubscribeUrl() {
-            const urlInput = document.getElementById('gh-url-result');
-            urlInput.select();
-            document.execCommand('copy');
-            showToast("链接已复制，去手机粘贴吧！");
+            const el = document.getElementById('gh-url-result');
+            el.select(); document.execCommand('copy'); showToast("已复制订阅链接");
         }
     </script>
 </body>
